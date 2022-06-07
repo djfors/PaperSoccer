@@ -19,6 +19,7 @@ public class FindOutWaypoints : MonoBehaviour
 	bool newCalculation = true;
 	bool initialKick = true;
 	bool myTurn = true;
+	bool endOfGame = false;
 	private MatrixPoints currentPoint;
 	private MatrixPoints[,] cloneField;
 	private int whosLine, myScore = 0, hisScore = 0, bestLine = -1;
@@ -34,108 +35,111 @@ public class FindOutWaypoints : MonoBehaviour
 	}
 	
     void Update()
-	{
-		if ((initialKick == true || whereICanGo.Count == 0) && noInitials() )
+	{	
+		if (!endOfGame)
 		{
-			EndOfTheGame();
-		}
-		
-		if (newCalculation)
-		{		
-			newCalculation = false;
-			whereICanGo.Clear();
-			
-			whosLine = myTurn ? 1 : 2;
-			
-			cloneField = CopyMatrix( GM.fieldMatrix );
+			if (newCalculation)
+			{		
+				newCalculation = false;
+				whereICanGo.Clear();
+				
+				whosLine = myTurn ? 1 : 2;
+				
+				cloneField = CopyMatrix( GM.fieldMatrix );
 
-			waypointsListStart = new List<MatrixPoints>();
-			waypointsListStart.Add(currentPoint);
-			
-			CalculateRoute(waypointsListStart, cloneField);		// основа. рассчет точек
-			
-			if (whereICanGo.Count == 0)	// если тупик, ходов не нашлось, то разводим заново по возможности
-			{
-				initialKick = true;
-				currentPoint = cloneField[7,4];
-				newCalculation = true;
-			}
-			else
-			{
-				if (myTurn)
+				waypointsListStart = new List<MatrixPoints>();
+				waypointsListStart.Add(currentPoint);
+				
+				CalculateRoute(waypointsListStart, cloneField);		// основа. рассчет точек
+				
+				if ((initialKick == true || whereICanGo.Count == 0) && noInitials() )
 				{
-					if (GM.isHelperOn)
-						ShowOrHideHelpers(whereICanGo, true);
-					GC.Collect();
+					EndOfTheGame();
+				}
+				
+				if (whereICanGo.Count == 0)	// если тупик, ходов не нашлось, то разводим заново по возможности
+				{
+					initialKick = true;
+					currentPoint = cloneField[7,4];
+					newCalculation = true;
 				}
 				else
-				{ 	// AI goes
-
-					bestLine = -1;	// 0 и 14 - до ворот. вынужденный автогол тоже возможен ;)
-					List<PotentialPoins> optionsToGo = new List<PotentialPoins>();
-					
-					for(int i = 0; i < whereICanGo.Count(); i++) // сделан клик в список доступных ходов? иначе игнор
+				{
+					if (myTurn)
 					{
-						if (whereICanGo[i].point.x > bestLine)
-						{
-							optionsToGo.Clear();
-							optionsToGo.Add( whereICanGo[i] );	// выписываем варианты ходов до одного уровня. чтобы рандомить
-							bestLine = whereICanGo[i].point.x;
-						}
-						if (whereICanGo[i].point.x == bestLine)
-						{
-							optionsToGo.Add( whereICanGo[i] );
-						}
+						if (GM.isHelperOn)
+							ShowOrHideHelpers(whereICanGo, true);
+						GC.Collect();
 					}
+					else
+					{ 	// AI goes
 
-
-					if (optionsToGo.Count > 0)
-					{
-						int option = Random.Range(0, optionsToGo.Count);
-						Vector3[] lineCoordinatesArray = MakeItVector3Array(optionsToGo[option].waypointsList);
-						drawLine.MakeLine(lineCoordinatesArray, GM.opponentColor);
-							
-						GM.fieldMatrix = optionsToGo[option].newFieldMatrix;
-						currentPoint = optionsToGo[option].point;
-						myTurn = true;
-						newCalculation = true;
+						bestLine = -1;	// 0 и 14 - до ворот. вынужденный автогол тоже возможен ;)
+						List<PotentialPoins> optionsToGo = new List<PotentialPoins>();
 						
-						if (bestLine == 14)
-							ScoredGoal(false);	// мне гол
-						if (bestLine == 0)
-							ScoredGoal(true);	// он себе автогол
+						for(int i = 0; i < whereICanGo.Count(); i++) // сделан клик в список доступных ходов? иначе игнор
+						{
+							if (whereICanGo[i].point.x > bestLine)
+							{
+								optionsToGo.Clear();
+								optionsToGo.Add( whereICanGo[i] );	// выписываем варианты ходов до одного уровня. чтобы рандомить
+								bestLine = whereICanGo[i].point.x;
+							}
+							if (whereICanGo[i].point.x == bestLine)
+							{
+								optionsToGo.Add( whereICanGo[i] );
+							}
+						}
+
+
+						if (optionsToGo.Count > 0)
+						{
+							int option = Random.Range(0, optionsToGo.Count);
+							Vector3[] lineCoordinatesArray = MakeItVector3Array(optionsToGo[option].waypointsList);
+							drawLine.MakeLine(lineCoordinatesArray, GM.opponentColor);
+								
+							GM.fieldMatrix = optionsToGo[option].newFieldMatrix;
+							currentPoint = optionsToGo[option].point;
+							myTurn = true;
+							newCalculation = true;
+							
+							if (bestLine == 14)
+								ScoredGoal(false);	// мне гол
+							if (bestLine == 0)
+								ScoredGoal(true);	// он себе автогол
+						}
 					}
 				}
 			}
-		}
 
-		if (Input.GetMouseButtonDown(0))
-		{	
-			RaycastHit2D hit = Physics2D.Raycast( Camera.main.ScreenToWorldPoint (Input.mousePosition) , Vector2.zero);
-			if (hit.collider != null)
-			{
-				string[] coordinates = hit.collider.gameObject.name.Split(new char[] { '-' });
-				int x = Convert.ToInt32(coordinates[0]);
-				int y = Convert.ToInt32(coordinates[1]);
-
-				foreach(PotentialPoins clickedPoint in whereICanGo) // сделан клик в список доступных ходов? иначе игнор
+			if (Input.GetMouseButtonDown(0))
+			{	
+				RaycastHit2D hit = Physics2D.Raycast( Camera.main.ScreenToWorldPoint (Input.mousePosition) , Vector2.zero);
+				if (hit.collider != null)
 				{
-					if (clickedPoint.point.x == x && clickedPoint.point.y == y)
+					string[] coordinates = hit.collider.gameObject.name.Split(new char[] { '-' });
+					int x = Convert.ToInt32(coordinates[0]);
+					int y = Convert.ToInt32(coordinates[1]);
+
+					foreach(PotentialPoins clickedPoint in whereICanGo) // сделан клик в список доступных ходов? иначе игнор
 					{
-						Vector3[] lineCoordinatesArray = MakeItVector3Array(clickedPoint.waypointsList);
-						drawLine.MakeLine(lineCoordinatesArray, GM.myColor);
-						
-						GM.fieldMatrix = clickedPoint.newFieldMatrix;
-						currentPoint = clickedPoint.point;
-						myTurn = false;
-						newCalculation = true;
-						initialKick = false;
-						ShowOrHideHelpers(whereICanGo, false);
-						if (clickedPoint.point.x == 0)
-							ScoredGoal(true);	// гол
-						if (clickedPoint.point.x == 14)
-							ScoredGoal(false);	// автогол ((
-						break;
+						if (clickedPoint.point.x == x && clickedPoint.point.y == y)
+						{
+							Vector3[] lineCoordinatesArray = MakeItVector3Array(clickedPoint.waypointsList);
+							drawLine.MakeLine(lineCoordinatesArray, GM.myColor);
+							
+							GM.fieldMatrix = clickedPoint.newFieldMatrix;
+							currentPoint = clickedPoint.point;
+							myTurn = false;
+							newCalculation = true;
+							initialKick = false;
+							ShowOrHideHelpers(whereICanGo, false);
+							if (clickedPoint.point.x == 0)
+								ScoredGoal(true);	// гол
+							if (clickedPoint.point.x == 14)
+								ScoredGoal(false);	// автогол ((
+							break;
+						}
 					}
 				}
 			}
@@ -263,11 +267,11 @@ public class FindOutWaypoints : MonoBehaviour
 		return copyMatrix;
 	}
 	
-	void ScoredGoal(bool forMe)
+	void ScoredGoal(bool iScoredGoal)
 	{
 		initialKick = true;
 		currentPoint = GM.fieldMatrix[7,4];
-		if (forMe)
+		if (iScoredGoal)
 		{
 			myTurn = false;
 			myScore++;
@@ -285,6 +289,7 @@ public class FindOutWaypoints : MonoBehaviour
 	{
 		newCalculation = false;
 		initialKick = false;
+		endOfGame = true;
 
 		if (myScore > hisScore)
 		{
