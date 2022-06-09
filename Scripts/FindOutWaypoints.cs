@@ -71,9 +71,9 @@ public class FindOutWaypoints : MonoBehaviour
 							ShowOrHideHelpers(whereICanGo, true);
 						GC.Collect();
 					}
-					else
-					{ 	// AI goes
-
+					else 	// AI goes
+					{
+						initialKick = false;
 						bestLine = -1;	// 0 и 14 - до ворот. вынужденный автогол тоже возможен ;)
 						List<PotentialPoins> optionsToGo = new List<PotentialPoins>();
 						
